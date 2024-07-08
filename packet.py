@@ -27,11 +27,14 @@ class packet:
         self.data = None
         self.crc16 = None
 
+    def __str__(self) -> str:
+        return str(self._stx)
+
     def update_dataLen(self):
         self._data_len = len(self.data)
 
     def update_crc(self, data):
-        self.crc16 = crc16(data)
+        self.crc16 = crc_check_16bites(data)
 
     def pack(self):
         '''
@@ -42,34 +45,37 @@ class packet:
         data = b''
 
         data += struct.pack("<H", self._stx)
-        print("_stx", data)
+        print(data.hex())
         data += struct.pack("<B", self.ctrl)
-        print("ctrl", data)
+        print(data.hex())
         data += struct.pack("<H", self._data_len)
-        print("_data_len", data)
+        print(data.hex())
         data += struct.pack("<H", self.seq)
-        print("seq", data)
+        print(data.hex())
         data += struct.pack("<B", self.cmd_id)
-        print("cmd_id", data)
+        print(data.hex())
         for single_data in self.data:
             data += struct.pack("<B", single_data)
+            print(data.hex())
         print(data)
         self.update_crc(data)
-        print('crc', data)
+        
         data += struct.pack("<H", self.crc16)  
         print(data.hex())
         return data
     
     def unpack(self, data):
-        pass
+        byte_data = list(hex(i) for i in data)
+
+        
 
     
 if __name__ == '__main__':
     singlePacket = packet()
     singlePacket.ctrl = 1
     singlePacket.seq = 0
-    singlePacket.cmd_id = 0x00
+    singlePacket.cmd_id = 0x19
     singlePacket.data = []
 
     command = singlePacket.pack()
-    print(command)
+    print(command.hex())

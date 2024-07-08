@@ -70,13 +70,14 @@ def crc16(data: bytes, poly=0x8408):
 if __name__ == '__main__':
         
     # 예제 데이터 및 호출
-    print(len(crc16_tab))
+    # print(len(crc16_tab))
     # data = [0x31, 0x32, 0x33, 0x34, 0x35]  # ASCII '12345'
-    data = struct.pack("!B", 0x31)   
-    data += struct.pack("!B", 0x32)
-    data += struct.pack("!B", 0x33)
-    data += struct.pack("!B", 0x34)
-    data += struct.pack("!B", 0x35)
-    
-    crc_result = crc16(data)
-    print(f"CRC16 결과: 0x{crc_result:04X}")
+    # data = struct.pack("!B", 0x31)   
+    # data += struct.pack("!B", 0x32)
+    # data += struct.pack("!B", 0x33)
+    # data += struct.pack("!B", 0x34)
+    # data += struct.pack("!B", 0x35)
+    data = b'Uf\x01\x00\x00\x00\x00\x19'
+    crc_result = crc_check_16bites(data)
+    print(crc_result)
+    print(struct.pack("<H", crc_result).hex())
