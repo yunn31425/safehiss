@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapbox with Textured Cube</title>
+    <!-- Include Mapbox GL JS CSS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.css" rel="stylesheet">
+    <!-- Include three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Your custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Include Mapbox GL JS -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.js"></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoieXVubiIsImEiOiJjbHR3dDYyMXAwMzR0MmtwNHo1bWk3dW1qIn0.o4nBVu9qWb5Hl13LZtebzA';
+        var map = new mapboxgl.Map({
+            container: 'map', // container ID
+            style: 'mapbox://styles/mapbox/streets-v11', // style URL
+            center: [128.09955, 35.15324], // starting position [lng, lat]
+            zoom: 20, // starting zoom
+            pitch: 60, // pitch in degrees
+            bearing: -27.6, // bearing in degrees
+            antialias: true // create the gl context with MSAA antialiasing
+        });
+
+        var modelOrigin = [128.09955, 35.15324];
+        var modelAltitude = 50;
+        var modelRotate = [2.5 * Math.PI / 2, 2* Math.PI / 2, Math.PI / 2];
+
+        var modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+            modelOrigin,
+            modelAltitude
+        );
+
+        var modelTransform = {
+            translateX: modelAsMercatorCoordinate.x,
+            translateY: modelAsMercatorCoordinate.y,
+            translateZ: modelAsMercatorCoordinate.z,
+            rotateX: modelRotate[0],
+            rotateY: modelRotate[1],
+            rotateZ: modelRotate[2],
+            scale: modelAsMercatorCoordinate.meterInMercatorCoordinateUnits()
+        };
+
+
+
+        function addImage(url){
+
+            var THREE = window.THREE;
+
+            var url = '{{ url_for("static", filename="images/your_image.png") }}'
+
+            var textureLoader = new THREE.TextureLoader();
+            var texture = textureLoader.load(url);
+
+            var geometry = new THREE.BoxGeometry(10, 10, 10);
+
+            // Create materials with one face having the image texture and others transparent
+            var materials = [
+                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Right
+                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Left
+                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Top
+                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Bottom
+                new THREE.MeshBasicMaterial({ map: texture }), // Front with texture
+                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 })  // Back
+            ];
+
+            this.cube = new THREE.Mesh(geometry, materials);
+
+            return this.cube
+        }
+
+        var THREE = window.THREE;
+
+        var crackLayer = {
+            id: '3d-model',
+            type: 'custom',
+            renderingMode: '3d',
+            onAdd: function(map, gl) {
+                this.camera = new THREE.Camera();
+                this.scene = new THREE.Scene();
+
+                // var directionalLight = new THREE.DirectionalLight(0xffffff);
+                // directionalLight.position.set(0, -70, 100).normalize();
+                // this.scene.add(directionalLight);
+
+                // var directionalLight2 = new THREE.DirectionalLight(0xffffff);
+                // directionalLight2.position.set(0, 70, 100).normalize();
+                // this.scene.add(directionalLight2);
+
+                // Load the texture for one face of the cube
+                var textureLoader = new THREE.TextureLoader();
+                var texture = textureLoader.load('{{ url_for("static", filename="images/your_image.png") }}');
+
+                var geometry = new THREE.BoxGeometry(10, 10, 10);
+
+                // Create materials with one face having the image texture and others transparent
+                var materials = [
+                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Right
+                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Left
+                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Top
+                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Bottom
+                    new THREE.MeshBasicMaterial({ map: texture }), // Front with texture
+                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 })  // Back
+                ];
+
+                this.cube = new THREE.Mesh(geometry, materials);
+                this.scene.add(this.cube);
+
+                this.map = map;
+
+                this.renderer = new THREE.WebGLRenderer({
+                    canvas: map.getCanvas(),
+                    context: gl,
+                    antialias: true
+                });
+
+                this.renderer.autoClear = false;
+            },
+            render: function(gl, matrix) {
+                var rotationX = new THREE.Matrix4().makeRotationAxis(
+                    new THREE.Vector3(1, 0, 0),
+                    modelTransform.rotateX
+                );
+                var rotationY = new THREE.Matrix4().makeRotationAxis(
+                    new THREE.Vector3(0, 1, 0),
+                    modelTransform.rotateY
+                );
+                var rotationZ = new THREE.Matrix4().makeRotationAxis(
+                    new THREE.Vector3(0, 0, 1),
+                    modelTransform.rotateZ
+                );
+
+                var m = new THREE.Matrix4().fromArray(matrix);
+                var l = new THREE.Matrix4()
+                    .makeTranslation(
+                        modelTransform.translateX,
+                        modelTransform.translateY,
+                        modelTransform.translateZ
+                    )
+                    .scale(
+                        new THREE.Vector3(
+                            modelTransform.scale,
+                            -modelTransform.scale,
+                            modelTransform.scale
+                        )
+                    )
+                    .multiply(rotationX)
+                    .multiply(rotationY)
+                    .multiply(rotationZ);
+
+                this.camera.projectionMatrix = m.multiply(l);
+                this.renderer.state.reset();
+                this.renderer.render(this.scene, this.camera);
+                this.map.triggerRepaint();
+            }
+        };
+
+        var buildingLayer = {
+            'id': 'add-3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#aaa',
+
+                // Use an 'interpolate' expression to
+                // add a smooth transition effect to
+                // the buildings as the user zooms in.
+                'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.6
+            }
+        }
+
+        map.on('style.load', function() {
+            map.addSource('mapbox-dem', {
+            'type': 'raster-dem',
+            'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            'tileSize': 512,
+            'maxzoom': 14
+            });
+            // add the DEM source as a terrain layer with exaggerated height
+            map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.0 });
+            map.addLayer(buildingLayer, 'waterway-label')
+            map.addLayer(crackLayer, 'waterway-label');
+        });
+    </script>
+</body>
+</html>
