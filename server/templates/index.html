@@ -10,203 +10,184 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Your custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        #overlay {
+            display: none;
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 300px;
+            height: 200px;
+            background-color: white;
+            border: 1px solid #000;
+            padding: 20px;
+            z-index: 1000;
+        }
+        #overlay h2 {
+            margin-top: 0;
+        }
+        #overlay button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
 </head>
 <body>
     <div id="map"></div>
+    <div id="overlay">
+        <button onclick="closeOverlay()">Close</button>
+        <h2>Cube Information</h2>
+        <p id="cube-info"></p>
+    </div>
 
     <!-- Include Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.8.2/mapbox-gl.js"></script>
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoieXVubiIsImEiOiJjbHR3dDYyMXAwMzR0MmtwNHo1bWk3dW1qIn0.o4nBVu9qWb5Hl13LZtebzA';
+
+        // Load cube data from Flask
+        var cubeDataList = {{ cube_data | tojson | safe }};
+
         var map = new mapboxgl.Map({
             container: 'map', // container ID
             style: 'mapbox://styles/mapbox/streets-v11', // style URL
-            center: [128.09955, 35.15324], // starting position [lng, lat]
-            zoom: 20, // starting zoom
+            center: cubeDataList[0].position, // starting position [lng, lat]
+            zoom: 15, // starting zoom
             pitch: 60, // pitch in degrees
-            bearing: -27.6, // bearing in degrees
+            bearing: -17.6, // bearing in degrees
             antialias: true // create the gl context with MSAA antialiasing
         });
 
-        var modelOrigin = [128.09955, 35.15324];
-        var modelAltitude = 50;
-        var modelRotate = [2.5 * Math.PI / 2, 2* Math.PI / 2, Math.PI / 2];
-
-        var modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
-            modelOrigin,
-            modelAltitude
-        );
-
-        var modelTransform = {
-            translateX: modelAsMercatorCoordinate.x,
-            translateY: modelAsMercatorCoordinate.y,
-            translateZ: modelAsMercatorCoordinate.z,
-            rotateX: modelRotate[0],
-            rotateY: modelRotate[1],
-            rotateZ: modelRotate[2],
-            scale: modelAsMercatorCoordinate.meterInMercatorCoordinateUnits()
-        };
-
-
-
-        function addImage(url){
-
-            var THREE = window.THREE;
-
-            var url = '{{ url_for("static", filename="images/your_image.png") }}'
-
-            var textureLoader = new THREE.TextureLoader();
-            var texture = textureLoader.load(url);
-
-            var geometry = new THREE.BoxGeometry(10, 10, 10);
-
-            // Create materials with one face having the image texture and others transparent
-            var materials = [
-                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Right
-                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Left
-                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Top
-                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Bottom
-                new THREE.MeshBasicMaterial({ map: texture }), // Front with texture
-                new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 })  // Back
-            ];
-
-            this.cube = new THREE.Mesh(geometry, materials);
-
-            return this.cube
-        }
-
         var THREE = window.THREE;
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        var cubes = [];
 
-        var crackLayer = {
-            id: '3d-model',
-            type: 'custom',
-            renderingMode: '3d',
-            onAdd: function(map, gl) {
-                this.camera = new THREE.Camera();
-                this.scene = new THREE.Scene();
+        function closeOverlay() {
+            document.getElementById('overlay').style.display = 'none';
+        }
 
-                // var directionalLight = new THREE.DirectionalLight(0xffffff);
-                // directionalLight.position.set(0, -70, 100).normalize();
-                // this.scene.add(directionalLight);
+        function onMouseClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
 
-                // var directionalLight2 = new THREE.DirectionalLight(0xffffff);
-                // directionalLight2.position.set(0, 70, 100).normalize();
-                // this.scene.add(directionalLight2);
-
-                // Load the texture for one face of the cube
-                var textureLoader = new THREE.TextureLoader();
-                var texture = textureLoader.load('{{ url_for("static", filename="images/your_image.png") }}');
-
-                var geometry = new THREE.BoxGeometry(10, 10, 10);
-
-                // Create materials with one face having the image texture and others transparent
-                var materials = [
-                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Right
-                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Left
-                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Top
-                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Bottom
-                    new THREE.MeshBasicMaterial({ map: texture }), // Front with texture
-                    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 })  // Back
-                ];
-
-                this.cube = new THREE.Mesh(geometry, materials);
-                this.scene.add(this.cube);
-
-                this.map = map;
-
-                this.renderer = new THREE.WebGLRenderer({
-                    canvas: map.getCanvas(),
-                    context: gl,
-                    antialias: true
-                });
-
-                this.renderer.autoClear = false;
-            },
-            render: function(gl, matrix) {
-                var rotationX = new THREE.Matrix4().makeRotationAxis(
-                    new THREE.Vector3(1, 0, 0),
-                    modelTransform.rotateX
-                );
-                var rotationY = new THREE.Matrix4().makeRotationAxis(
-                    new THREE.Vector3(0, 1, 0),
-                    modelTransform.rotateY
-                );
-                var rotationZ = new THREE.Matrix4().makeRotationAxis(
-                    new THREE.Vector3(0, 0, 1),
-                    modelTransform.rotateZ
-                );
-
-                var m = new THREE.Matrix4().fromArray(matrix);
-                var l = new THREE.Matrix4()
-                    .makeTranslation(
-                        modelTransform.translateX,
-                        modelTransform.translateY,
-                        modelTransform.translateZ
-                    )
-                    .scale(
-                        new THREE.Vector3(
-                            modelTransform.scale,
-                            -modelTransform.scale,
-                            modelTransform.scale
-                        )
-                    )
-                    .multiply(rotationX)
-                    .multiply(rotationY)
-                    .multiply(rotationZ);
-
-                this.camera.projectionMatrix = m.multiply(l);
-                this.renderer.state.reset();
-                this.renderer.render(this.scene, this.camera);
-                this.map.triggerRepaint();
-            }
-        };
-
-        var buildingLayer = {
-            'id': 'add-3d-buildings',
-            'source': 'composite',
-            'source-layer': 'building',
-            'filter': ['==', 'extrude', 'true'],
-            'type': 'fill-extrusion',
-            'minzoom': 15,
-            'paint': {
-                'fill-extrusion-color': '#aaa',
-
-                // Use an 'interpolate' expression to
-                // add a smooth transition effect to
-                // the buildings as the user zooms in.
-                'fill-extrusion-height': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    15,
-                    0,
-                    15.05,
-                    ['get', 'height']
-                ],
-                'fill-extrusion-base': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    15,
-                    0,
-                    15.05,
-                    ['get', 'min_height']
-                ],
-                'fill-extrusion-opacity': 0.6
+            var intersects = raycaster.intersectObjects(cubes);
+            if (intersects.length > 0) {
+                var intersectedCube = intersects[0].object;
+                document.getElementById('cube-info').textContent = 'Position: ' + intersectedCube.userData.position + '\nSize: ' + intersectedCube.userData.size;
+                document.getElementById('overlay').style.display = 'block';
             }
         }
 
-        map.on('style.load', function() {
-            map.addSource('mapbox-dem', {
-            'type': 'raster-dem',
-            'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-            'tileSize': 512,
-            'maxzoom': 14
+        map.on('click', function(event) {
+            onMouseClick(event.originalEvent);
+        });
+
+        cubeDataList.forEach(function(cubeData) {
+            var modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+                cubeData.position,
+                cubeData.altitude
+            );
+
+            var modelTransform = {
+                translateX: modelAsMercatorCoordinate.x,
+                translateY: modelAsMercatorCoordinate.y,
+                translateZ: modelAsMercatorCoordinate.z,
+                rotateX: cubeData.rotation[0],
+                rotateY: cubeData.rotation[1],
+                rotateZ: cubeData.rotation[2],
+                scale: modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() * cubeData.size / 10 // Scale based on size
+            };
+
+            var customLayer = {
+                id: '3d-model-' + Math.random().toString(36).substr(2, 9), // Unique ID for each layer
+                type: 'custom',
+                renderingMode: '3d',
+                onAdd: function(map, gl) {
+                    this.camera = new THREE.Camera();
+                    this.scene = new THREE.Scene();
+
+                    var directionalLight = new THREE.DirectionalLight(0xffffff);
+                    directionalLight.position.set(0, -70, 100).normalize();
+                    this.scene.add(directionalLight);
+
+                    var directionalLight2 = new THREE.DirectionalLight(0xffffff);
+                    directionalLight2.position.set(0, 70, 100).normalize();
+                    this.scene.add(directionalLight2);
+
+                    var textureLoader = new THREE.TextureLoader();
+                    var texture = textureLoader.load('{{ url_for("static", filename="images/") }}' + cubeData.image);
+
+                    var geometry = new THREE.BoxGeometry(cubeData.size, cubeData.size, cubeData.size);
+
+                    var materials = [
+                        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Right
+                        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Left
+                        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Top
+                        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 }), // Bottom
+                        new THREE.MeshBasicMaterial({ map: texture }), // Front with texture
+                        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 })  // Back
+                    ];
+
+                    var cube = new THREE.Mesh(geometry, materials);
+                    cube.userData = cubeData; // Store cube data in userData
+                    this.scene.add(cube);
+                    cubes.push(cube); // Add cube to array
+
+                    this.map = map;
+
+                    this.renderer = new THREE.WebGLRenderer({
+                        canvas: map.getCanvas(),
+                        context: gl,
+                        antialias: true
+                    });
+
+                    this.renderer.autoClear = false;
+                },
+                render: function(gl, matrix) {
+                    var rotationX = new THREE.Matrix4().makeRotationAxis(
+                        new THREE.Vector3(1, 0, 0),
+                        modelTransform.rotateX
+                    );
+                    var rotationY = new THREE.Matrix4().makeRotationAxis(
+                        new THREE.Vector3(0, 1, 0),
+                        modelTransform.rotateY
+                    );
+                    var rotationZ = new THREE.Matrix4().makeRotationAxis(
+                        new THREE.Vector3(0, 0, 1),
+                        modelTransform.rotateZ
+                    );
+
+                    var m = new THREE.Matrix4().fromArray(matrix);
+                    var l = new THREE.Matrix4()
+                        .makeTranslation(
+                            modelTransform.translateX,
+                            modelTransform.translateY,
+                            modelTransform.translateZ
+                        )
+                        .scale(
+                            new THREE.Vector3(
+                                modelTransform.scale,
+                                -modelTransform.scale,
+                                modelTransform.scale
+                            )
+                        )
+                        .multiply(rotationX)
+                        .multiply(rotationY)
+                        .multiply(rotationZ);
+
+                    this.camera.projectionMatrix = m.multiply(l);
+                    this.renderer.resetState();
+                    this.renderer.render(this.scene, this.camera);
+                    this.map.triggerRepaint();
+                }
+            };
+
+            map.on('style.load', function() {
+                map.addLayer(customLayer, 'waterway-label');
             });
-            // add the DEM source as a terrain layer with exaggerated height
-            map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.0 });
-            map.addLayer(buildingLayer, 'waterway-label')
-            map.addLayer(crackLayer, 'waterway-label');
         });
     </script>
 </body>
