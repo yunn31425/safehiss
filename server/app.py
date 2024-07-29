@@ -9,7 +9,7 @@ def index():
             'position': [128.09964, 35.1532],  # Longitude, Latitude
             'altitude': 0,
             'rotation': [0, 0, 0],  # Rotation angles in radians
-            'size': 10,  # Size of the cube
+            'size': 10,  # Size of the cubeN
             'image': 'your_image.png'  # Image file name
         },
         {
@@ -18,7 +18,22 @@ def index():
             'rotation': [1.052, 0, 0],  # Rotation angles in radians
             'size': 10,  # Size of the cube
             'image': 'your_image.png'  # Image file name
-        }
+        },
+        {
+            'position': [128.09894, 35.1532],  # Longitude, Latitude
+            'altitude': 0,
+            'rotation': [1.052, 0, 0],  # Rotation angles in radians
+            'size': 10,  # Size of the cube
+            'image': 'your_image.png'  # Image file name
+        },
+
+        {
+            'position': [128.09794, 35.1532],  # Longitude, Latitude
+            'altitude': 0,
+            'rotation': [1.052, 0, 0],  # Rotation angles in radians
+            'size': 10,  # Size of the cube
+            'image': 'your_image.png'  # Image file name
+        },
     ]
     
     return render_template('index.html', cube_data=cube_data,

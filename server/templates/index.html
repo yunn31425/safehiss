@@ -69,9 +69,21 @@
         }
 
         function onMouseClick(event) {
+            event.preventDefault();
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
+            // raycaster.setFromCamera(mouse, camera);
+            const camInverseProjection = 
+                new THREE.Matrix4().getInverse(this.camera.projectionMatrix);
+            const cameraPosition =
+                new THREE.Vector3().applyMatrix4(camInverseProjection);
+            const mousePosition =
+                new THREE.Vector3(mouse.x, mouse.y, 1)
+                .applyMatrix4(camInverseProjection);
+            const viewDirection = mousePosition.clone()
+                .sub(cameraPosition).normalize();
+
+            this.raycaster.set(cameraPosition, viewDirection);
 
             var intersects = raycaster.intersectObjects(cubes);
             if (intersects.length > 0) {
@@ -105,6 +117,7 @@
                 id: '3d-model-' + Math.random().toString(36).substr(2, 9), // Unique ID for each layer
                 type: 'custom',
                 renderingMode: '3d',
+
                 onAdd: function(map, gl) {
                     this.camera = new THREE.Camera();
                     this.scene = new THREE.Scene();
