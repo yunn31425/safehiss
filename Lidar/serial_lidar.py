@@ -3,7 +3,7 @@ import Jetson.GPIO as GPIO
 import time
 
 class LidarModule:
-    def __init__(self) -> None:
+    def __init__(self):
         # UART 포트 설정
         self.serial_port = '/dev/ttyTHS0'
         self.baud_rate = 115200

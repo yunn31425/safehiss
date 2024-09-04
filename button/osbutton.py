@@ -42,10 +42,10 @@ class GPIOController:
                     return value
             except IOError as e:
                 print(f"Error reading value from GPIO {self.gpio_index}: {e}")
-                return None
+                return False
         else:
             print(f"GPIO {self.gpio_id} is not exported.")
-            return None
+            return False
         
     def check_pushed(self):
         cur_value = self.read_value()

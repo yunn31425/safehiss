@@ -12,6 +12,7 @@ RTSP_IP = "192.168.144.25"
 
 if __name__ == '__main__':
     lcdProjetor = EasyLcd()
+    print(lcdProjetor)
     lcdProjetor.lcd_init()
     lcdProjetor.lcd_string_up("--INITIALIZING--")
 
@@ -83,20 +84,6 @@ if __name__ == '__main__':
 
     lcdProjetor.lcd_string_up("READY FOR RECORD")
 
-    # time.sleep(1)
-    
-    # lcdProjetor.lcd_string_up("RECORDING")
-
-    # time.sleep(1)
-
-    # lcdProjetor.lcd_string_up("SAVING")
-
-    # time.sleep(1)
-
-    # lcdProjetor.lcd_string_up("SAVING COMPLETE")
-
-    # time.sleep(1)
-
     gpio_id = 391
     gpio_index = "PH.00"
 
@@ -119,9 +106,15 @@ if __name__ == '__main__':
                     if if_recording:
                         lcdProjetor.lcd_string_up("STOP RECORD")
                         lcdProjetor.lcd_string_down("SAVING")
-                        eo_file_name, eo_directory = eo_recorder.stop()
+                        print(eo_recorder, ir_recorder)
+                        print('ha')
                         ir_file_name, ir_directory = ir_recorder.stop()
+                        print('ha')
+                        eo_file_name, eo_directory = eo_recorder.stop()
+                        # 
 
+                        print(eo_file_name, eo_directory)
+                        print(ir_file_name, ir_directory)
                         
                         lcdProjetor.lcd_string_down("SAVING COMPLETE")
 
@@ -135,6 +128,9 @@ if __name__ == '__main__':
                         
                     else:
                         start_time = time.time()
+                        
+                        eo_recorder.update_file_name()
+                        ir_recorder.update_file_name()
                         
                         lcdProjetor.lcd_string_up("START RECORDING")
                         eo_recorder.start()

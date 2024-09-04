@@ -14,7 +14,7 @@ gi.require_version('GstApp', '1.0')
 from gi.repository import Gst, GLib, GstApp
 
 SERVER_URL = 'http://203.255.57.124:5000'
-RTSP_URL = "rtsp://192.168.144.25:8554/video1"
+RTSP_URL = "rtsp://192.168.144.25:8554/video2"
 RTSP_IP = "192.168.144.25"
 
 EO = 1
@@ -28,7 +28,7 @@ class camClient:
     2. 서버가 보내는 명령 수신 및 동작
     3. 명령 : 영상 녹화, 
     '''
-    def __init__(self, server_url, rtsp_url, rtsp_ip) -> None:
+    def __init__(self, server_url, rtsp_url, rtsp_ip):
         self.sio = socketio.Client()
         self.server_url = server_url
         self.rtsp_url = rtsp_url
@@ -119,28 +119,40 @@ class camClient:
         except subprocess.CalledProcessError:
             print(f"Host {self.rtsp_ip} is not reachable. RESET")
 
+            cam_activate_order = ["sudo" ,"ifconfig" ,"eth0", "up"]
             ip_add_order = ["sudo", "ip", "addr", "add", "192.168.144.30/24", "dev", "eth0"]
             interface_order = ["sudo", "ethtool", "-s", "eth0", "speed", "10", "duplex", "full"]
 
+            cam_activate = subprocess.run(cam_activate_order, stdout=subprocess.PIPE)
             result_ip_add =  subprocess.run(ip_add_order, stdout=subprocess.PIPE)
             result_interface = subprocess.run(interface_order, stdout=subprocess.PIPE)
 
-            if result_interface and result_ip_add:
-                return True
+            if cam_activate and result_interface and result_ip_add:
+                try:
+                    subprocess.run(
+                        ["ping", "-c", "1", "-W", str(timeout), self.rtsp_ip],
+                        check=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    return True
+                
+                except subprocess.CalledProcessError:
+                    return False
             
             else:
                 return False
 
 class RTSPRecord:
-    def __init__(self, video_num, rtsp_ip)  -> None:
+    def __init__(self, video_num, rtsp_ip):
         self._video_num = video_num
         self._file_name = ""
         self._rtsp_ip = rtsp_ip
 
         # 파일 이름 생성
         timestamp = int(time.time())
-        video_type = "EO" if video_num == 1 else "Thermal"
-        self._file_name = f"recorded/{video_type}_{timestamp}.mp4"
+        self.video_type = "EO" if video_num == 1 else "Thermal"
+        self._file_name = f"/home/nvidia/recorded/{self.video_type}_{timestamp}.mp4"
 
         # GStreamer 파이프라인 문자열
         self.pipeline_str_record = (
@@ -149,11 +161,22 @@ class RTSPRecord:
             f"x264enc ! mp4mux ! filesink location={self._file_name}"
         )
 
-        self.pipeline = None
-        self.loop = None
+        self.pipeline = 1
+        self.loop = 1
         self.stop_event = multiprocessing.Event()
 
         Gst.init(None)
+        
+    def update_file_name(self):
+        timestamp = int(time.time())
+        self._file_name = f"/home/nvidia/recorded/{self.video_type}_{timestamp}.mp4"
+
+        # GStreamer 파이프라인 문자열
+        self.pipeline_str_record = (
+            f"rtspsrc location=rtsp://192.168.144.25:8554/video{self._video_num} latency=100 ! "
+            "rtph265depay ! h265parse ! avdec_h265 ! videoconvert ! "
+            f"x264enc ! mp4mux ! filesink location={self._file_name}"
+        )
 
 
     def checkCam(self, timeout=3):
@@ -198,12 +221,27 @@ class RTSPRecord:
         def on_message(bus, message):
             if message.type == Gst.MessageType.EOS:
                 print("End of stream")
+                print(self.loop)
                 self.loop.quit()
             elif message.type == Gst.MessageType.ERROR:
                 err, debug = message.parse_error()
-                print(f"Error: {err}, {debug}")
+                if err:
+                    print(f"Error: {err}, {debug}")
+                else:
+                    print("Unknown error occurred.")
                 self.loop.quit()
-                raise Exception
+                raise Exception("Pipeline encountered an error")
+            elif message.type == Gst.MessageType.WARNING:
+                err, debug = message.parse_warning()
+                if err:
+                    print(f"Warning: {err}, {debug}")
+                else:
+                    print("Unknown warning.")
+                # 경고를 처리할 필요가 있을 경우 추가 처리
+            else:
+                print(message.type)
+
+            print("on_message end")
                 
 
         # 메시지 핸들러 연결
@@ -215,7 +253,9 @@ class RTSPRecord:
         def check_for_stop():
             if self.stop_event.is_set():
                 print("Stop event detected, sending EOS...")
+                print(240)
                 self.pipeline.send_event(Gst.Event.new_eos())
+                print(242)
                 return False  # Stop the timeout function
             return True  # Continue the timeout function
 
@@ -246,9 +286,14 @@ class RTSPRecord:
         self.stop_event.set()
         self.process.join()
 
+        # 종료 후 녹화된 파일의 이름과 디렉토리 반환
+        ir_directory = os.path.dirname(self._file_name)
+        ir_file_name = os.path.basename(self._file_name)
+        return ir_file_name, ir_directory
+
 if __name__ == '__main__':
     Gst.init(None)
-    client = RTSPRecord(EO, RTSP_IP)
+    client = RTSPRecord(THERAML, RTSP_IP)
     print(client.checkCam())
     client.start()
     time.sleep(10)
