@@ -1,7 +1,7 @@
 from button.osbutton import *
 from lcd.lcdApi import *
 from siyi.cam import *
-from Lidar.serial_lidar import *
+from Lidar.Lidar_recode import *
 import threading, sys, time, subprocess
 
 SERVER_URL = 'http://203.255.57.124:5000'
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # 라이다 초기화
     try:
         lcdProjetor.lcd_string_down("Lidar : ")
-        lidar_module = LidarModule()
+        lidar_module = Lidar_recoder()
         lidar_check_result = lidar_module.checkConnection()
 
         if lidar_check_result:
@@ -106,12 +106,9 @@ if __name__ == '__main__':
                     if if_recording:
                         lcdProjetor.lcd_string_up("STOP RECORD")
                         lcdProjetor.lcd_string_down("SAVING")
-                        print(eo_recorder, ir_recorder)
-                        print('ha')
                         ir_file_name, ir_directory = ir_recorder.stop()
-                        print('ha')
                         eo_file_name, eo_directory = eo_recorder.stop()
-                        # 
+                        lidar_module.stop()
 
                         print(eo_file_name, eo_directory)
                         print(ir_file_name, ir_directory)
@@ -135,6 +132,7 @@ if __name__ == '__main__':
                         lcdProjetor.lcd_string_up("START RECORDING")
                         eo_recorder.start()
                         ir_recorder.start()
+                        lidar_module.start()
                         
                         if_recording = True
                         

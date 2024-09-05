@@ -7,8 +7,8 @@ def create_command():
     singlePacket = packet.packet()
     singlePacket.ctrl = 1
     singlePacket.seq = 0x1D
-    singlePacket.cmd_id = 0x0C
-    singlePacket.data = [0x06]
+    singlePacket.cmd_id = 0x12
+    singlePacket.data = [0x40, 0x01, 0x00, 0x01, 0x01]
 
     command = singlePacket.pack()
 

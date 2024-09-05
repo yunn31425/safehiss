@@ -24,7 +24,7 @@ class LidarModule:
         
         return True
 
-    def getAltitude(self):
+    def getRange(self):
         self.uart = serial.Serial(self.serial_port, self.baud_rate, timeout=1)
         try:
             buf = [_ for _ in range(9)]
@@ -61,6 +61,6 @@ class LidarModule:
 if __name__ == '__main__':
     lidar_module = LidarModule()
     print(lidar_module.checkConnection())
-    # while True:
-    #     distance = lidar_module.getAltitude()
-    #     print(distance)
+    while True:
+        distance = lidar_module.getAltitude()
+        print(distance)
